@@ -1,0 +1,356 @@
+import os
+import torch
+from torch.utils.data import DataLoader
+import numpy as np
+from src import Logger
+from transformers import optimization
+from tqdm import tqdm
+import time
+import wandb
+from test import test_model
+import torch.nn.functional as F
+from models import maskModel, CDModel
+import lightning as L
+
+
+def train2(_config, train_dataset, val_dataset, test_dataset, seq_Encoder):
+    time.sleep(100)
+    num_ddp = 8
+    fabric = L.Fabric(accelerator='cuda', devices=num_ddp, strategy='ddp')
+    fabric.launch()
+
+    wandb.login(key=_config["wandbKey"])
+    wandb_epoch = None
+    wandb_step = wandb.init(
+        config=_config,
+        project=_config["project"] + "_steps",
+        name=_config["wandbName"],
+        job_type=_config["job_type"],
+        reinit=True,
+    )
+    start = time.time()
+
+    textHead = _config["textHead"]
+    imageHead = _config["imageHead"]
+    trainText = _config["trainText"]
+    trainImg = _config["trainImg"]
+    image_size = _config["image_resize"]
+    batch_size = _config["batch_size"]
+
+    num_epochs = _config["step_two_epoch"]
+    learning_rate = _config["learning_rate"]
+    saveDir = _config["saveDir"]
+    miniStep = _config["steps"]
+    is_scheduler = _config["scheduler"]
+    num_workers = _config["num_workers"]
+    pin_memory = _config["pin_memory"]
+    persistent_workers = _config["persistent_workers"]
+    classes = _config["question_classes"]
+    if not os.path.isdir(saveDir):
+        os.makedirs(saveDir)
+    log_file_name = (
+            saveDir + "log-" + time.strftime("%Y%m%d-%H%M%S", time.localtime()) + ".log"
+    )
+    logger = Logger(log_file_name)
+    logger.info(f"saveDir: {saveDir}")
+    bestVal = 9999999
+    bestAcc = 0
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        persistent_workers=persistent_workers,
+        pin_memory=pin_memory,
+    )
+    train_loader = fabric.setup_dataloaders(train_loader)
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        persistent_workers=persistent_workers,
+        pin_memory=pin_memory,
+    )
+    val_loader = fabric.setup_dataloaders(val_loader)
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=max(batch_size, 2),
+        shuffle=False,
+        num_workers=num_workers,
+        persistent_workers=persistent_workers,
+        pin_memory=pin_memory,
+    )
+    test_loader = fabric.setup_dataloaders(test_loader)
+
+    model = CDModel(
+        _config,
+        seq_Encoder.getVocab(question=True),
+        seq_Encoder.getVocab(question=False),
+        input_size=image_size,
+        textHead=textHead,
+        imageHead=imageHead,
+        trainText=trainText,
+        trainImg=trainImg,
+    )
+    model.load_state_dict(torch.load(f"{saveDir}lastValModel.pth"))
+    for param in model.maskNet.parameters():
+        param.requires_grad = False
+    optimizer = torch.optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=learning_rate,
+        weight_decay=_config["weight_decay"],
+    )
+
+    scheduler = None
+
+    if is_scheduler:
+        lr_end = _config["end_learning_rate"]
+        if _config["CosineAnnealingLR"]:
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer=optimizer, T_max=num_epochs, eta_min=lr_end
+            )
+        elif _config["warmUp"]:
+            scheduler = optimization.get_polynomial_decay_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=5,
+                num_training_steps=num_epochs,
+                lr_end=lr_end,
+                power=2,
+            )
+
+    criterion = torch.nn.CrossEntropyLoss()
+    (
+        trainLoss,
+        trainAccLoss,
+        trainMaeLoss,
+        trainRmseLoss,
+        valLoss,
+        valAccLoss,
+        valMaeLoss,
+        valRmseLoss,
+        acc,
+    ) = ([], [], [], [], [], [], [], [], [])
+
+    accPerQuestionType = {str(i): [] for i in range(1, classes + 1)}
+    logger.info(
+        f"Started training... total epoch: {num_epochs}, batch-size: {int(batch_size * miniStep)}, step: {miniStep}"
+    )
+    model, optimizer = fabric.setup(model, optimizer)
+
+    steps = 0
+
+    for epoch in range(num_epochs):
+        # train
+        model.train()
+        accLoss, maeLoss, rmseLoss = 0, 0, 0
+        logger.info(f"Epoch {epoch}")
+        t1 = time.time()
+        for i, data in tqdm(
+                enumerate(train_loader, 0),
+                total=len(train_loader),
+                ncols=100,
+                mininterval=1,
+        ):
+            question, answer, image, mask = data
+            pred, pred_mask = model(image, question, mask)
+            answer = answer
+            mae = F.l1_loss(mask, pred_mask)
+            mse = F.mse_loss(mask, pred_mask)
+            rmse = torch.sqrt(mse)
+            acc_loss = criterion(pred, answer)
+            loss = 0 * mae + 0 * rmse + acc_loss
+            step_acc = acc_loss.cpu().item()
+            # The ground truth of mask has not been normalized. (Which is intuitively weird)
+            # This may be modified in future versions, but currently this method works better than directly normalizing the mask
+            if not _config['normalize']:
+                mae = mae / 255
+                rmse = rmse / 255
+            step_mae = mae.cpu().item()
+            step_rmse = rmse.cpu().item()
+            if epoch == 0:
+                wandb_step.log(
+                    {
+                        "step loss": step_rmse + step_mae + step_acc,
+                        "step acc loss": step_acc,
+                        "step mae loss": step_mae,
+                        "step rmse loss": step_rmse,
+                    },
+                    step=steps,
+                )
+            steps += 1
+            accLoss += step_acc * image.shape[0] * num_ddp
+            maeLoss += step_mae * image.shape[0] * num_ddp
+            rmseLoss += step_rmse * image.shape[0] * num_ddp
+            # --------------------- L1 ---------------------------
+            if _config["L1Reg"]:
+                L1_reg = 0
+                for param in model.parameters():
+                    L1_reg += torch.sum(torch.abs(param))
+                loss = (loss + L1_reg * 1e-7) / miniStep
+            # -----------------------------------------------------
+            else:
+                loss = loss / miniStep
+            fabric.backward(loss)
+            if (i + 1) % miniStep == 0:
+                optimizer.step()
+                optimizer.zero_grad()
+
+        trainAccLoss.append(accLoss / len(train_dataset))
+        trainMaeLoss.append(maeLoss / len(train_dataset))
+        trainRmseLoss.append(rmseLoss / len(train_dataset))
+        trainLoss.append(
+            trainAccLoss[epoch] + trainRmseLoss[epoch] + trainMaeLoss[epoch]
+        )
+        t2 = time.time()
+        lr = optimizer.param_groups[0]["lr"]
+        logger.info(
+            f"Training: epoch {epoch}, train loss: {trainLoss[epoch]:.5f}, acc loss : {trainAccLoss[epoch]:.5f}, "
+            f"mae loss: {trainMaeLoss[epoch]:.5f}, rmse loss: {trainRmseLoss[epoch]:.5f},lr: {lr}"
+        )
+        wandb_step.finish()
+
+        if epoch == 0:
+            wandb_epoch = wandb.init(
+                config=_config,
+                project=_config["project"],
+                name=_config["wandbName"],
+                job_type=_config["job_type"],
+                reinit=True,
+            )
+        wandb_epoch.log(
+            {
+                "train loss": trainLoss[epoch],
+                "train acc loss": trainAccLoss[epoch],
+                "train mae loss": trainMaeLoss[epoch],
+                "train rmse loss": trainRmseLoss[epoch],
+                "learning rate": lr,
+                "train time cost": t2 - t1,
+            },
+            step=epoch,
+        )
+        if is_scheduler:
+            scheduler.step()
+
+        # --------------------validation-------------------
+        v1 = time.time()
+        logger.info(f"Validation:")
+        with torch.no_grad():
+            model.eval()
+            accLoss, maeLoss, rmseLoss = 0, 0, 0
+
+            countQuestionType = {str(i): 0 for i in range(1, classes + 1)}
+            rightAnswerByQuestionType = {str(i): 0 for i in range(1, classes + 1)}
+
+            for i, data in tqdm(
+                    enumerate(val_loader, 0),
+                    total=len(val_loader),
+                    ncols=100,
+                    mininterval=1,
+            ):
+                question, answer, image, type_str, mask, image_original = data
+                pred, pred_mask = model(image, question, mask)
+                answer = answer
+                mae = F.l1_loss(mask, pred_mask)
+                mse = F.mse_loss(mask, pred_mask)
+                rmse = torch.sqrt(mse)
+                acc_loss = criterion(pred, answer)
+                accLoss += acc_loss.cpu().item() * image.shape[0] * num_ddp
+                # The ground truth of mask has not been normalized. (Which is intuitively weird)
+                # This may be modified in future versions, but currently this method works better than directly normalizing the mask
+                if not _config['normalize']:
+                    mae = mae / 255
+                    rmse = rmse / 255
+                maeLoss += mae.cpu().item() * image.shape[0] * num_ddp
+                rmseLoss += rmse.cpu().item() * image.shape[0] * num_ddp
+                answer = answer.cpu().numpy()
+                pred = np.argmax(pred.cpu().detach().numpy(), axis=1)
+
+                for j in range(answer.shape[0]):
+                    countQuestionType[type_str[j]] += 1
+                    if answer[j] == pred[j]:
+                        rightAnswerByQuestionType[type_str[j]] += 1
+
+            valAccLoss.append(accLoss / len(val_dataset))
+            valMaeLoss.append(maeLoss / len(val_dataset))
+            valRmseLoss.append(rmseLoss / len(val_dataset))
+            valLoss.append(valAccLoss[epoch] + valRmseLoss[epoch] + valMaeLoss[epoch])
+            if valLoss[epoch] < bestVal:
+                bestVal = valLoss[epoch]
+                torch.save(model.state_dict(), f"{saveDir}bestValLoss.pth")
+            logger.info(
+                f"Epoch {epoch} , val loss: {valLoss[epoch]:.5f}, acc loss : {valAccLoss[epoch]:.5f}, "
+                f"mae loss: {valMaeLoss[epoch]:.5f}, rmae loss: {valRmseLoss[epoch]:.5f}"
+            )
+
+            numQuestions = 0
+            numRightQuestions = 0
+            logger.info("Acc:")
+            subclassAcc = {}
+            for type_str in countQuestionType.keys():
+                if countQuestionType[type_str] > 0:
+                    accPerQuestionType[type_str].append(
+                        rightAnswerByQuestionType[type_str]
+                        * 1.0
+                        / countQuestionType[type_str]
+                    )
+                else:
+                    accPerQuestionType[type_str].append(0)
+                numQuestions += countQuestionType[type_str]
+                numRightQuestions += rightAnswerByQuestionType[type_str]
+                subclassAcc[type_str] = tuple(
+                    (countQuestionType[type_str], accPerQuestionType[type_str][epoch])
+                )
+            logger.info(
+                "\t".join(
+                    [
+                        f"{key}({subclassAcc[key][0]}) : {subclassAcc[key][1]:.5f}"
+                        for key in subclassAcc.keys()
+                    ]
+                )
+            )
+
+            # ave acc
+            acc.append(numRightQuestions * 1.0 / numQuestions)
+            if acc[epoch] > bestAcc:
+                bestAcc = acc[epoch]
+                torch.save(model.state_dict(), f"{saveDir}bestValAcc.pth")
+            AA = 0
+            for key in subclassAcc.keys():
+                wandb_epoch.log(
+                    {"val " + key + " acc": subclassAcc[key][1]}, step=epoch
+                )
+                AA += subclassAcc[key][1]
+            if _config['balance']:
+                AA = AA / (len(subclassAcc) - 2)
+            else:
+                AA = AA / len(subclassAcc)
+            v2 = time.time()
+            logger.info(f"overall acc: {acc[epoch]:.5f}\taverage acc: {AA:.5f}")
+            wandb_epoch.log(
+                {
+                    "val overall acc": acc[epoch],
+                    "val average acc": AA,
+                    "val loss": valLoss[epoch],
+                    "val acc loss": valAccLoss[epoch],
+                    "val mae loss": valMaeLoss[epoch],
+                    "val rmse loss": valRmseLoss[epoch],
+                    "validation time cost": v2 - v1,
+                },
+                step=epoch,
+            )
+        torch.save(model.state_dict(), f"{saveDir}lastValModel.pth")
+        test_model(
+            _config,
+            model,
+            test_loader,
+            len(test_dataset),
+            logger,
+            wandb_epoch,
+            epoch,
+            num_ddp,
+        )
+    if wandb_epoch is not None:
+        wandb_epoch.finish()
+    end = time.time()
+    logger.info(f"time used: {end - start} s")
