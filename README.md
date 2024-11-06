@@ -62,9 +62,7 @@ python main.py
 
 ### Data Examples
 
-![数据集](.\img\datasets.png)
-
-
+![数据集](https://github.com/shenyedepisa/RSCMQA/blob/main/img/datasets.png)
 
 ### Citation
 
