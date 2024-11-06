@@ -62,7 +62,7 @@ python main.py
 
 ### Data Examples
 
-![数据集](C:\Users\pizza\Desktop\开题\素材\数据集.png)
+![数据集](.\img\datasets.png)
 
 
 
