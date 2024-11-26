@@ -13,7 +13,7 @@ from models import maskModel, CDModel
 import lightning as L
 
 
-def train(_config, train_dataset, val_dataset, test_dataset, seq_Encoder):
+def train(_config, train_dataset, val_dataset, test_dataset):
     num_ddp = 8
     fabric = L.Fabric(accelerator='cuda', devices=num_ddp, strategy='ddp')
     fabric.launch()
@@ -84,8 +84,6 @@ def train(_config, train_dataset, val_dataset, test_dataset, seq_Encoder):
     optimizer_mask = None
     model = CDModel(
         _config,
-        seq_Encoder.getVocab(question=True),
-        seq_Encoder.getVocab(question=False),
         input_size=image_size,
         textHead=textHead,
         imageHead=imageHead,

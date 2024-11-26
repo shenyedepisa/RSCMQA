@@ -73,5 +73,5 @@ def main(_config):
     )
 
     train(
-        _config, train_dataset, val_dataset, test_dataset, seq_Encoder, device
+        _config, train_dataset, val_dataset, test_dataset, device
     )

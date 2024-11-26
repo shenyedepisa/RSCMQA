@@ -8,8 +8,6 @@ class CDModel(nn.Module):
     def __init__(
             self,
             config,
-            vocab_questions,
-            vocab_answers,
             input_size,
             textHead,
             imageHead,
@@ -25,7 +23,6 @@ class CDModel(nn.Module):
         self.textModelPath = config["textModelPath"]
         self.fusion_in = config["FUSION_IN"]
         self.fusion_hidden = config["FUSION_HIDDEN"]
-        self.vocab_answers = vocab_answers
         self.num_classes = config['answer_number']
         self.clipList = config["clipList"]
         self.vitList = config["vitList"]
@@ -65,6 +62,8 @@ class CDModel(nn.Module):
         if self.textHead == "siglip-512":
             siglip_model = AutoModel.from_pretrained(self.textModelPath)
             self.textModel = siglip_model.text_model
+            self.lineV = nn.Linear(768, 768)
+            self.lineM = nn.Linear(768, 768)
         elif self.textHead in self.clipList:
             clip = CLIPModel.from_pretrained(self.textModelPath)
             self.textModel = clip.text_model

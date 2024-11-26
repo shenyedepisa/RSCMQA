@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from models import maskModel, CDModel
 
 
-def train(_config, train_dataset, val_dataset, test_dataset, seq_Encoder, device):
+def train(_config, train_dataset, val_dataset, test_dataset, device):
     wandb.login(key=_config["wandbKey"])
     wandb_epoch = None
     wandb_step = wandb.init(
@@ -78,8 +78,6 @@ def train(_config, train_dataset, val_dataset, test_dataset, seq_Encoder, device
     if oneStep:
         model = CDModel(
             _config,
-            seq_Encoder.getVocab(question=True),
-            seq_Encoder.getVocab(question=False),
             input_size=image_size,
             textHead=textHead,
             imageHead=imageHead,
@@ -129,8 +127,6 @@ def train(_config, train_dataset, val_dataset, test_dataset, seq_Encoder, device
         )
         model = CDModel(
             _config,
-            seq_Encoder.getVocab(question=True),
-            seq_Encoder.getVocab(question=False),
             input_size=image_size,
             textHead=textHead,
             imageHead=imageHead,

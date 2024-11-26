@@ -8,8 +8,6 @@ class CDModel(nn.Module):
     def __init__(
             self,
             config,
-            vocab_questions,
-            vocab_answers,
             input_size,
             textHead,
             imageHead,
@@ -46,6 +44,8 @@ class CDModel(nn.Module):
         if self.imageHead == "siglip-512":
             siglip_model = AutoModel.from_pretrained(self.imageModelPath)
             self.imgModel = siglip_model.vision_model
+            self.lineV = nn.Linear(768, 768)
+            self.lineM = nn.Linear(768, 768)
         elif self.imageHead in self.clipList:
             clip = CLIPModel.from_pretrained(self.imageModelPath)
             self.imgModel = clip.vision_model

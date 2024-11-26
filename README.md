@@ -1,4 +1,4 @@
-# RS-CMQA: Model and dataset for global remote sensing image copy-move forgery question answering
+# Copy-Move Forgery Detection and Question Answering for Remote Sensing Image
 
 This is the initial version of the RS-CMQA dataset, RS-CMQA-B dataset and Copy-Move Forgery Awareness Framework (CMFAF). 
 

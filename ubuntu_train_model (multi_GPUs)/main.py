@@ -75,8 +75,8 @@ def main(_config):
         transform=data_transforms,
     )
 
-    train(_config, train_dataset, val_dataset, test_dataset, seq_Encoder)
+    train(_config, train_dataset, val_dataset, test_dataset)
     oneStep = _config["one_step"]
     if not oneStep:
         time.sleep(50)
-        train2(_config, train_dataset, val_dataset, test_dataset, seq_Encoder)
+        train2(_config, train_dataset, val_dataset, test_dataset)
