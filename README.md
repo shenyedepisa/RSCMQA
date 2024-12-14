@@ -1,6 +1,10 @@
 # Copy-Move Forgery Detection and Question Answering for Remote Sensing Image
 
-This is the initial version of the RS-CMQA dataset, RS-CMQA-B dataset and Copy-Move Forgery Awareness Framework (CMFAF). 
+This is the initial version of the RS-CMQA dataset, RS-CMQA-B dataset and Copy-Move Forgery Awareness Framework (CMFAF).
+
+2024.9.5.	initial version
+
+2024.12.15.	Updated code and dataset links
 
 ### Installation
 
@@ -31,11 +35,15 @@ pip install -r requirements.txt
 
 ### Download Datasets
 
-- **Datasets V1.0 is released at Baidu Drive** (2024.9.5)
+- [**Datasets V1.0 is released at Baidu Drive** (2024.9.5)](https://pan.baidu.com/s/1k9PRUC4dT1hTGC7oPyL6lQ?pwd=RSCM)
 
-- **Datasets V2.0 is released at Baidu Drive** (2024.10.11)
+  Dataset v1 only includes copy-move forgery
 
-  
+- [**Datasets V2.0 is released at Baidu Drive** (2024.10.11)](https://pan.baidu.com/s/1XhM7e35_EwV5G50ObYhcxw?pwd=TQA2)
+
+  Dataset v2 includes copy-move  and blurring tamper. For blurring tamper, the tampered region and the source region are treated as the same region
+
+- **TBD: The high-quality, annotated manually  dataset will be released before March, 2026**
 
 - Dataset Directory: ` datasets/`
 
@@ -67,11 +75,11 @@ python main.py
 ### Citation
 
 ```
-@unpublished{global2025aaai,
-  title = {Global-TQA: Global Remote Sensing Image Tampering Question and Answering},
-  url={https://anonymous.4open.science/r/TQA},
-  month = {8},
-  year = {2024}
+@article{zhang2024copymove,
+    title={Copy-Move Forgery Detection and Question Answering for Remote Sensing Image}, 
+    author={Z. Zhang and E. Zhao and Z. Wan and J. Nie and X. Liang and L. Huang},
+    journal={arXiv preprint arXiv:2412.02575},
+    year={2024},
 }
 ```
 

@@ -14,9 +14,10 @@ def config():
 
     balance = False
     normalize = False
-    answer_number = 53
-    if balance:
-        answer_number = 53
+    # v1 answer_number = 51, v2 answer_number = 53,
+    answer_number = 51
+    # v1 question_classes = 14, v2 question_classes = 15,
+    question_classes = 14
 
     opts = True
     one_step = False
@@ -28,11 +29,10 @@ def config():
         num_epochs = thread_epoch
         step_two_epoch = all_epochs - thread_epoch
 
-    question_classes = 15
     learning_rate = 5e-5
     saveDir = "outputs/formal_two_step_ops/"
     new_data_path = "datasets/"
-    source_image_size = 224
+    source_image_size = 512
     image_resize = 224
     FUSION_IN = 768
     FUSION_HIDDEN = 512
@@ -71,6 +71,7 @@ def config():
         "images_path": os.path.join(new_data_path, "image"),
         "sourceMask_path": os.path.join(new_data_path, "source"),
         "targetMask_path": os.path.join(new_data_path, "target"),
+        "seg_path": os.path.join(new_data_path, "segmentation"),
         "backgroundMask_path": os.path.join(new_data_path, "background"),
         "answersJson": os.path.join(json_path, "Answers.json"),
         "allQuestionsJSON": os.path.join(json_path, "All_Questions.json"),

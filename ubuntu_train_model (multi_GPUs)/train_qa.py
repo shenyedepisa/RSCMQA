@@ -314,15 +314,16 @@ def train2(_config, train_dataset, val_dataset, test_dataset):
                 bestAcc = acc[epoch]
                 torch.save(model.state_dict(), f"{saveDir}bestValAcc.pth")
             AA = 0
+            empty = 0
             for key in subclassAcc.keys():
                 wandb_epoch.log(
                     {"val " + key + " acc": subclassAcc[key][1]}, step=epoch
                 )
                 AA += subclassAcc[key][1]
-            if _config['balance']:
-                AA = AA / (len(subclassAcc) - 2)
-            else:
-                AA = AA / len(subclassAcc)
+                if subclassAcc[key][1] == 0:
+                    empty += 1
+            AA = AA / (len(subclassAcc) - empty)
+            
             v2 = time.time()
             logger.info(f"overall acc: {acc[epoch]:.5f}\taverage acc: {AA:.5f}")
             wandb_epoch.log(

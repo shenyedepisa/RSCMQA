@@ -93,14 +93,15 @@ def test_model(_config, model, test_loader, test_length, device, logger, wandb_e
         # ave acc
         acc = numRightQuestions * 1.0 / numQuestions
         AA = 0
+        empty = 0
         for key in subclassAcc.keys():
             if wandb_epoch:
                 wandb_epoch.log({"test " + key + " acc": subclassAcc[key][1]}, step=epoch)
             AA += subclassAcc[key][1]
-        if _config['balance']:
-            AA = AA / (len(subclassAcc) - 2)
-        else:
-            AA = AA / len(subclassAcc)
+            if subclassAcc[key][1] == 0:
+                empty += 1
+        AA = AA / (len(subclassAcc) - empty)
+        
         v2 = time.time()
         logger.info(f"overall acc: {acc:.5f}\taverage acc: {AA:.5f}")
         if wandb_epoch:

@@ -14,21 +14,22 @@ def config():
 
     balance = True
     normalize = False
-    answer_number = 53
-    if balance:
-        answer_number = 53
-
+    # v1 answer_number = 51, v2 answer_number = 53,
+    answer_number = 51
+    # v1 question_classes = 14, v2 question_classes = 15,
+    question_classes = 14
+    
     opts = True
     num_epochs = 20
     thread_epoch = 10
     one_step = True
     if not one_step:
         thread_epoch = 10
-    question_classes = 15
+
     learning_rate = 5e-5
     saveDir = "./outputs/formal_balance/"
     new_data_path = "datasets/"
-    source_image_size = 224
+    source_image_size = 512
     image_resize = 224
     FUSION_IN = 768
     FUSION_HIDDEN = 512
@@ -65,19 +66,20 @@ def config():
         "images_path": os.path.join(new_data_path, "image"),
         "sourceMask_path": os.path.join(new_data_path, "source"),
         "targetMask_path": os.path.join(new_data_path, "target"),
+        "seg_path": os.path.join(new_data_path, "segmentation"),
         "backgroundMask_path": os.path.join(new_data_path, "background"),
         "answersJson": os.path.join(json_path, "Answers.json"),
         "allQuestionsJSON": os.path.join(json_path, "All_Questions.json"),
         "train": {
-            "imagesJSON": os.path.join(json_path, "All_images.json"),
+            "imagesJSON": os.path.join(json_path, "All_Images.json"),
             "questionsJSON": os.path.join(json_path, "Train_Questions.json"),
         },
         "val": {
-            "imagesJSON": os.path.join(json_path, "All_images.json"),
+            "imagesJSON": os.path.join(json_path, "All_Images.json"),
             "questionsJSON": os.path.join(json_path, "Val_Questions.json"),
         },
         "test": {
-            "imagesJSON": os.path.join(json_path, "All_images.json"),
+            "imagesJSON": os.path.join(json_path, "All_Images.json"),
             "questionsJSON": os.path.join(json_path, "Test_Questions.json"),
         },
     }
