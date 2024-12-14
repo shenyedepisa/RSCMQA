@@ -43,7 +43,7 @@ pip install -r requirements.txt
 
   Dataset v2 includes copy-move  and blurring tamper. For blurring tamper, the tampered region and the source region are treated as the same region
 
-- **TBD: The high-quality, annotated manually  dataset will be released before March, 2026**
+- **TBD: The high-quality, annotated manually  dataset will be released before March, 2025**
 
 - Dataset Directory: ` datasets/`
 
