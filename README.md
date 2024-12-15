@@ -35,11 +35,11 @@ pip install -r requirements.txt
 
 ### Download Datasets
 
-- [**Datasets V1.0 is released at Baidu Drive** (2024.9.5)](https://pan.baidu.com/s/1k9PRUC4dT1hTGC7oPyL6lQ?pwd=RSCM)
+- [**Datasets V1.0 is released at Baidu Drive** (2024.9.5)](https://pan.baidu.com/s/1k9PRUC4dT1hTGC7oPyL6lQ?pwd=RSCM). Available for download.
 
   Dataset v1 only includes copy-move forgery
 
-- [**Datasets V2.0 is released at Baidu Drive** (2024.10.11)](https://pan.baidu.com/s/1XhM7e35_EwV5G50ObYhcxw?pwd=TQA2)
+- **Datasets V2.0 is released at Baidu Drive** (2024.10.11). Will be available for download after the paper is officially accepted.
 
   Dataset v2 includes copy-move  and blurring tamper. For blurring tamper, the tampered region and the source region are treated as the same region
 
