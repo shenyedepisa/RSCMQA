@@ -8,7 +8,7 @@ ex = Experiment("RSCD_1", save_git_info=False)
 def config():
     # Wandb Config
     wandbName = "formal_two_step_ops"
-    wandbKey = "116c9acc73067dd77655e21532d04392aff2174a"
+    wandbKey = ""
     project = "Global_TQA"
     job_type = "train"
 

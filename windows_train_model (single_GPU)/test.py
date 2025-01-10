@@ -13,36 +13,41 @@ import copy
 
 def test_model(_config, model, test_loader, test_length, device, logger, wandb_epoch=None, epoch=0):
     v1 = time.time()
+    use_wandb = _config["use_wandb"]
     classes = _config["question_classes"]
     criterion = torch.nn.CrossEntropyLoss()
     logger.info(f"Testing:")
     with torch.no_grad():
         model.eval()
-        accLoss, maeLoss, rmseLoss = 0, 0, 0
+        accLoss, maeLoss, rmseLoss = 0, 0, 0,
 
         countQuestionType = {str(i): 0 for i in range(1, classes + 1)}
         rightAnswerByQuestionType = {str(i): 0 for i in range(1, classes + 1)}
 
         for i, data in tqdm(
-            enumerate(test_loader, 0),
-            total=len(test_loader),
-            ncols=100,
-            mininterval=1,
+                enumerate(test_loader, 0),
+                total=len(test_loader),
+                ncols=100,
+                mininterval=1,
         ):
             question, answer, image, type_str, mask, image_original = data
             pred, pred_mask = model(
                 image.to(device), question.to(device), mask.to(device)
             )
+
             answer = answer.to(device)
             mae = F.l1_loss(mask.to(device), pred_mask)
             mse = F.mse_loss(mask.to(device), pred_mask)
             rmse = torch.sqrt(mse)
+
             # The ground truth of mask has not been normalized. (Which is intuitively weird)
             # This may be modified in future versions, but currently this method works better than directly normalizing the mask
             if not _config['normalize']:
-                mae = mae / 255
-                rmse = rmse / 255
+                mae = mae.cpu() / 255
+                rmse = rmse.cpu() / 255
+
             acc_loss = criterion(pred, answer)
+
             accLoss += acc_loss.cpu().item() * image.shape[0]
             maeLoss += mae.cpu().item() * image.shape[0]
             rmseLoss += rmse.cpu().item() * image.shape[0]
@@ -93,18 +98,16 @@ def test_model(_config, model, test_loader, test_length, device, logger, wandb_e
         # ave acc
         acc = numRightQuestions * 1.0 / numQuestions
         AA = 0
-        empty = 0
         for key in subclassAcc.keys():
-            if wandb_epoch:
-                wandb_epoch.log({"test " + key + " acc": subclassAcc[key][1]}, step=epoch)
+            if use_wandb:
+                if wandb_epoch:
+                    wandb_epoch.log({"test " + key + " acc": subclassAcc[key][1]}, step=epoch)
             AA += subclassAcc[key][1]
-            if subclassAcc[key][1] == 0:
-                empty += 1
-        AA = AA / (len(subclassAcc) - empty)
-        
+        AA = AA / len(subclassAcc)
+
         v2 = time.time()
         logger.info(f"overall acc: {acc:.5f}\taverage acc: {AA:.5f}")
-        if wandb_epoch:
+        if wandb_epoch and use_wandb:
             wandb_epoch.log(
                 {
                     "test overall acc": acc,
@@ -136,7 +139,7 @@ def main(_config):
     if not os.path.exists(saveDir):
         os.mkdir(saveDir)
     log_file_name = (
-        saveDir + "Test-" + time.strftime("%Y%m%d-%H%M%S", time.localtime()) + ".log"
+            saveDir + "Test-" + time.strftime("%Y%m%d-%H%M%S", time.localtime()) + ".log"
     )
     logger = Logger(log_file_name)
     source_img_size = _config["source_image_size"]
@@ -168,18 +171,17 @@ def main(_config):
         transform=data_transforms,
     )
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    weightsName = "weight_path"
+    weightsName = f"{saveDir}lastValModel.pth"
     model = CDModel(
         _config,
-        seq_Encoder.getVocab(question=True),
-        seq_Encoder.getVocab(question=False),
+        seq_Encoder.getVocab(),
         input_size=image_size,
         textHead=textHead,
         imageHead=imageHead,
         trainText=trainText,
         trainImg=trainImg,
     )
-    state_dict = torch.load(weightsName,map_location=device)
+    state_dict = torch.load(weightsName, map_location=device)
     model.load_state_dict(state_dict)
     model.to(device)
     test_length = len(test_dataset)
@@ -191,4 +193,4 @@ def main(_config):
         persistent_workers=persistent_workers,
         pin_memory=pin_memory,
     )
-    test_model(_config, model, test_loader,test_length, device, logger)
+    test_model(_config, model, test_loader, test_length, device, logger)

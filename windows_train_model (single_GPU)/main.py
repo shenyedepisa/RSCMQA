@@ -1,6 +1,10 @@
 import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["TOKENIZERS_PARALLELISM"] = "true"
+from warnings import simplefilter
+
+simplefilter(action='ignore', category=FutureWarning)
 import torch
 import copy
 import torchvision.transforms as T
@@ -73,5 +77,5 @@ def main(_config):
     )
 
     train(
-        _config, train_dataset, val_dataset, test_dataset, device
+        _config, train_dataset, val_dataset, test_dataset, device, seq_Encoder
     )

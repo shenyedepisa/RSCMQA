@@ -12,16 +12,19 @@ import torch.nn.functional as F
 from models import maskModel, CDModel
 
 
-def train(_config, train_dataset, val_dataset, test_dataset, device):
-    wandb.login(key=_config["wandbKey"])
-    wandb_epoch = None
-    wandb_step = wandb.init(
-        config=_config,
-        project=_config["project"] + "_steps",
-        name=_config["wandbName"],
-        job_type=_config["job_type"],
-        reinit=True,
-    )
+def train(_config, train_dataset, val_dataset, test_dataset, device, question_vocab):
+    use_wandb = _config['use_wandb']
+    wandb_step, wandb_epoch = None, None
+    if use_wandb:
+        wandb.login(key=_config["wandbKey"])
+        wandb_epoch = None
+        wandb_step = wandb.init(
+            config=_config,
+            project=_config["project"] + "_steps",
+            name=_config["wandbName"],
+            job_type=_config["job_type"],
+            reinit=True,
+        )
     start = time.time()
     textHead = _config["textHead"]
     imageHead = _config["imageHead"]
@@ -78,6 +81,7 @@ def train(_config, train_dataset, val_dataset, test_dataset, device):
     if oneStep:
         model = CDModel(
             _config,
+            question_vocab.getVocab(),
             input_size=image_size,
             textHead=textHead,
             imageHead=imageHead,
@@ -127,6 +131,7 @@ def train(_config, train_dataset, val_dataset, test_dataset, device):
         )
         model = CDModel(
             _config,
+            question_vocab.getVocab(),
             input_size=image_size,
             textHead=textHead,
             imageHead=imageHead,
@@ -192,6 +197,9 @@ def train(_config, train_dataset, val_dataset, test_dataset, device):
             called = True
             for param in model.maskNet.parameters():
                 param.requires_grad = False
+            # if _config['learnable_mask']:
+            #     for param in model.learnable_weights.parameters():
+            #         param.requires_grad = True
         for i, data in tqdm(
                 enumerate(train_loader, 0),
                 total=len(train_loader),
@@ -200,24 +208,24 @@ def train(_config, train_dataset, val_dataset, test_dataset, device):
         ):
             question, answer, image, mask = data
             pred, pred_mask = model(
-                image.to(device), question.to(device), mask.to(device)
+                image.to(device), question.to(device), mask.to(device), epoch=epoch
             )
             answer = answer.to(device)
             mae = F.l1_loss(mask.to(device), pred_mask)
             mse = F.mse_loss(mask.to(device), pred_mask)
             rmse = torch.sqrt(mse)
             acc_loss = criterion(pred, answer)
-            loss = 0 * mae + 0.3 * rmse + 0.7 * acc_loss
+
+            loss = 0.3 * rmse + 0.7 * acc_loss
             # The ground truth of mask has not been normalized. (Which is intuitively weird)
             # This may be modified in future versions, but currently this method works better than directly normalizing the mask
             if not _config['normalize']:
-                mae = mae/255
-                rmse = rmse/255
+                mae = mae.cpu() / 255
+                rmse = rmse.cpu() / 255
             step_acc = acc_loss.cpu().item()
             step_mae = mae.cpu().item()
             step_rmse = rmse.cpu().item()
-
-            if epoch == 0:
+            if epoch == 0 and use_wandb:
                 wandb_step.log(
                     {
                         "step loss": step_rmse + step_mae + step_acc,
@@ -258,11 +266,12 @@ def train(_config, train_dataset, val_dataset, test_dataset, device):
         lr = optimizer.param_groups[0]["lr"]
         logger.info(
             f"Training: epoch {epoch}, train loss: {trainLoss[epoch]:.5f}, acc loss : {trainAccLoss[epoch]:.5f}, "
-            f"mae loss: {trainMaeLoss[epoch]:.5f}, rmse loss: {trainRmseLoss[epoch]:.5f},lr: {lr}"
+            f"mae loss: {trainMaeLoss[epoch]:.5f}, rmse loss: {trainRmseLoss[epoch]:.5f},lr: {lr}\n"
         )
-        wandb_step.finish()
+        if use_wandb:
+            wandb_step.finish()
 
-        if epoch == 0:
+        if epoch == 0 and use_wandb:
             wandb_epoch = wandb.init(
                 config=_config,
                 project=_config["project"],
@@ -270,17 +279,18 @@ def train(_config, train_dataset, val_dataset, test_dataset, device):
                 job_type=_config["job_type"],
                 reinit=True,
             )
-        wandb_epoch.log(
-            {
-                "train loss": trainLoss[epoch],
-                "train acc loss": trainAccLoss[epoch],
-                "train mae loss": trainMaeLoss[epoch],
-                "train rmse loss": trainRmseLoss[epoch],
-                "learning rate": lr,
-                "train time cost": t2 - t1,
-            },
-            step=epoch,
-        )
+        if use_wandb:
+            wandb_epoch.log(
+                {
+                    "train loss": trainLoss[epoch],
+                    "train acc loss": trainAccLoss[epoch],
+                    "train mae loss": trainMaeLoss[epoch],
+                    "train rmse loss": trainRmseLoss[epoch],
+                    "learning rate": lr,
+                    "train time cost": t2 - t1,
+                },
+                step=epoch,
+            )
         if is_scheduler:
             scheduler.step()
             if oneStep and opts and epoch < _config["thread_epoch"]:
@@ -309,11 +319,13 @@ def train(_config, train_dataset, val_dataset, test_dataset, device):
                 mae = F.l1_loss(mask.to(device), pred_mask)
                 mse = F.mse_loss(mask.to(device), pred_mask)
                 rmse = torch.sqrt(mse)
+
+
                 # The ground truth of mask has not been normalized. (Which is intuitively weird)
                 # This may be modified in future versions, but currently this method works better than directly normalizing the mask
                 if not _config['normalize']:
-                    mae = mae / 255
-                    rmse = rmse / 255
+                    mae = mae.cpu() / 255
+                    rmse = rmse.cpu() / 255
                 acc_loss = criterion(pred, answer)
                 accLoss += acc_loss.cpu().item() * image.shape[0]
                 maeLoss += mae.cpu().item() * image.shape[0]
@@ -336,7 +348,7 @@ def train(_config, train_dataset, val_dataset, test_dataset, device):
                 torch.save(model.state_dict(), f"{saveDir}bestValLoss.pth")
             logger.info(
                 f"Epoch {epoch} , val loss: {valLoss[epoch]:.5f}, acc loss : {valAccLoss[epoch]:.5f}, "
-                f"mae loss: {valMaeLoss[epoch]:.5f}, rmae loss: {valRmseLoss[epoch]:.5f}"
+                f"mae loss: {valMaeLoss[epoch]:.5f}, rmae loss: {valRmseLoss[epoch]:.5f}, "
             )
 
             numQuestions = 0
@@ -372,42 +384,40 @@ def train(_config, train_dataset, val_dataset, test_dataset, device):
                 bestAcc = acc[epoch]
                 torch.save(model.state_dict(), f"{saveDir}bestValAcc.pth")
             AA = 0
-            empty = 0
             for key in subclassAcc.keys():
-                wandb_epoch.log(
-                    {"val " + key + " acc": subclassAcc[key][1]}, step=epoch
-                )
+                if use_wandb:
+                    wandb_epoch.log(
+                        {"val " + key + " acc": subclassAcc[key][1]}, step=epoch
+                    )
                 AA += subclassAcc[key][1]
-                if subclassAcc[key][1] == 0:
-                    empty += 1
-            AA = AA / (len(subclassAcc) - empty)
-            
+            AA = AA / len(subclassAcc)
+
             v2 = time.time()
             logger.info(f"overall acc: {acc[epoch]:.5f}\taverage acc: {AA:.5f}")
-            wandb_epoch.log(
-                {
-                    "val overall acc": acc[epoch],
-                    "val average acc": AA,
-                    "val loss": valLoss[epoch],
-                    "val acc loss": valAccLoss[epoch],
-                    "val mae loss": valMaeLoss[epoch],
-                    "val rmse loss": valRmseLoss[epoch],
-                    "validation time cost": v2 - v1,
-                },
-                step=epoch,
-            )
+            if use_wandb:
+                wandb_epoch.log(
+                    {
+                        "val overall acc": acc[epoch],
+                        "val average acc": AA,
+                        "val loss": valLoss[epoch],
+                        "val acc loss": valAccLoss[epoch],
+                        "val mae loss": valMaeLoss[epoch],
+                        "val rmse loss": valRmseLoss[epoch],
+                        "validation time cost": v2 - v1,
+                    },
+                    step=epoch,
+                )
         torch.save(model.state_dict(), f"{saveDir}lastValModel.pth")
-    test_model(
-        _config,
-        model,
-        test_loader,
-        len(test_dataset),
-        device,
-        logger,
-        wandb_epoch,
-        num_epochs,
-    )
-    wandb_epoch.finish()
+        test_model(
+            _config,
+            model,
+            test_loader,
+            len(test_dataset),
+            device,
+            logger,
+            wandb_epoch,
+            epoch,
+        )
     end = time.time()
     logger.info(f"time used: {end - start} s")
 
