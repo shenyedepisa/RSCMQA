@@ -48,7 +48,9 @@ pip install -r requirements.txt
 - **Dataset Release**
 
   the released datasets include RS-CMQA (RS-CMQA-B), RS-TQA (RS-TQA-B) and Real-RSCM
+
   Download link: [**Baidu Drive (224 x 224)** ](https://pan.baidu.com/s/1V-MIFmOnoEFRvFp3M8myJQ?pwd=CMQA) , **[Google Drive (224x224)](https://drive.google.com/drive/folders/1-1iMW6o_j1u16y5ZmckpqD2n1M9QVEIG?usp=drive_link)**
+
   Download link: [**Baidu Drive (512 x 512)** ](https://pan.baidu.com/s/1RG_EPz5rbMOcGvRkyS7wTQ?pwd=CMQA) 
 
 - Dataset Directory: ` datasets/`
@@ -76,7 +78,7 @@ python main.py
 
 ### Data Examples
 
-![数据集](https://github.com/shenyedepisa/RSCMQA/blob/main/img/datasets.pdf)
+![数据集](https://github.com/shenyedepisa/RSCMQA/blob/main/img/datasets.png)
 
 ### Citation
 
