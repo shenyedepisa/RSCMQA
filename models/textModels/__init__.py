@@ -1,0 +1,1 @@
+from .seq2vec import factory

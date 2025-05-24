@@ -1,10 +1,12 @@
 # Copy-Move Forgery Detection and Question Answering for Remote Sensing Image
 
-This is the initial version of the RS-CMQA dataset, RS-CMQA-B dataset and Copy-Move Forgery Awareness Framework (CMFAF).
+This is the initial version of the RS-CMQA dataset, RS-CMQA-B dataset, Real-RSCM dataset, RS-TQA dataset, RS-TQA-B dataset and Copy-Move Forgery Awareness Framework (CMFAF).
 
 2024.9.5.	initial version
 
 2024.12.15.	Updated code and dataset links
+
+2024.5.24.	Updated code and dataset links
 
 ### Installation
 
@@ -35,19 +37,23 @@ pip install -r requirements.txt
 
 ### Download Datasets
 
-- [**Datasets V1.0 is released at Baidu Drive** (2024.9.5)](https://pan.baidu.com/s/1k9PRUC4dT1hTGC7oPyL6lQ?pwd=RSCM). Available for download.
+- ~~**Datasets-beta-1.0 is released at Baidu Drive** (2024.9.5). Available for download.~~
 
-  Dataset v1 only includes copy-move forgery
+  Dataset-beta-1.0 only includes copy-move forgery
 
-- **Datasets V2.0 is released at Baidu Drive** (2024.10.11). Will be available for download after the paper is officially accepted.
+- ~~**Datasets-beta-1.1 is released at Baidu Drive**~ (2024.10.11).~~
 
-  Dataset v2 includes copy-move  and blurring tamper. For blurring tamper, the tampered region and the source region are treated as the same region
+  Dataset-beta-1.1 includes copy-move  and blurring tamper. For blurring tamper, the tampered region and the source region are treated as the same region
 
-- **TBD: The high-quality, annotated manually  dataset will be released before March, 2025**
+- **Dataset Release**
+
+  the released datasets include RS-CMQA (RS-CMQA-B), RS-TQA (RS-TQA-B) and Real-RSCM
+  Download link: [**Baidu Drive (224 x 224)** ](https://pan.baidu.com/s/1V-MIFmOnoEFRvFp3M8myJQ?pwd=CMQA) , **[Google Drive (224x224)](https://drive.google.com/drive/folders/1-1iMW6o_j1u16y5ZmckpqD2n1M9QVEIG?usp=drive_link)**
+  Download link: [**Baidu Drive (512 x 512)** ](https://pan.baidu.com/s/1RG_EPz5rbMOcGvRkyS7wTQ?pwd=CMQA) 
 
 - Dataset Directory: ` datasets/`
 
-- Dataset Subdirectory: `datasets/JsonFiles/`, `datasets/JsonFilesBalanced/`, `datasets/image/`, `datasets/source/`, `datasets/target/`, `datasets/background/`
+- Dataset Subdirectory: `datasets/subName/JsonFiles/`, `datasets/subName/JsonFilesBalanced/`, `datasets/subName/image/`, `datasets/subName/source/`, `datasets/subName/target/`, `datasets/subName/background/`, `datasets/subName/original/ (not used)`, 
 
 
 ### Download pre-trained weights
@@ -70,7 +76,7 @@ python main.py
 
 ### Data Examples
 
-![数据集](https://github.com/shenyedepisa/RSCMQA/blob/main/img/datasets.png)
+![数据集](https://github.com/shenyedepisa/RSCMQA/blob/main/img/datasets.pdf)
 
 ### Citation
 
