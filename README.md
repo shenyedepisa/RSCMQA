@@ -83,11 +83,11 @@ python main.py
 ### Citation
 
 ```
-@article{zhang2024copymove,
+@article{zhang2025copymove,
     title={Copy-Move Forgery Detection and Question Answering for Remote Sensing Image}, 
-    author={Z. Zhang and E. Zhao and Z. Wan and J. Nie and X. Liang and L. Huang},
+    author={Z. Zhang and E. Zhao and D. Niu and J. Nie and X. Liang and L. Huang},
     journal={arXiv preprint arXiv:2412.02575},
-    year={2024},
+    year={2025},
 }
 ```
 
