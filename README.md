@@ -26,7 +26,7 @@ conda activate tamper
 # with conda
 conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
 # with pip
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu118
 ```
 
 ##### Install Packages
@@ -37,13 +37,13 @@ pip install -r requirements.txt
 
 ### Download Datasets
 
-- ~~**Datasets-beta-1.0 is released at Baidu Drive** (2024.9.5). Available for download.~~
+- ~~**Datasets-beta-Beta is released at Baidu Drive** (2024.9.5). Available for download.~~
 
-  Dataset-beta-1.0 only includes copy-move forgery
+  Dataset-beta-Beta only includes copy-move forgery
 
-- ~~**Datasets-beta-1.1 is released at Baidu Drive**~ (2024.10.11).~~
+- ~~**Datasets-beta-Beta-1.1 is released at Baidu Drive**~ (2024.10.11).~~
 
-  Dataset-beta-1.1 includes copy-move  and blurring tamper. For blurring tamper, the tampered region and the source region are treated as the same region
+  Dataset-beta-Beta-1.1 includes copy-move  and blurring tamper. For blurring tamper, the tampered region and the source region are treated as the same region
 
 - **Dataset Release**
 
